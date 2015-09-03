@@ -1,2 +1,2 @@
-# gateway-script
-FFRG Multi-Community Gateway Script
+# (FFRG) gateway-script
+(Freifunk) Multi-Community Gateway Script
