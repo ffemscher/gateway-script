@@ -26,20 +26,20 @@ ip -6 rule add to 2a03:2260:50::/44 pref 10 table 42
 sysctl -w net.ipv6.conf.all.forwarding=1
 sysctl -w net.ipv4.ip_forward=1
 
-# Block Fastd over Fastd
-iptables -A INPUT -s 185.66.192.0/22 -i eth0 -p udp -m udp --dport 10000 -m limit --limit 2/sec -j LOG --log-prefix 'fastd over mesh: '
-iptables -A INPUT -s 185.66.192.0/22 -i eth0 -p udp -m udp --dport 10000 -j REJECT --reject-with icmp-admin-prohibited
-ip6tables -A INPUT -s 2a03:2260::/30 -i eth0 -p udp -m udp --dport 10000 -m limit --limit 2/sec -j LOG --log-prefix 'fastd over mesh: '
-ip6tables -A INPUT -s 2a03:2260::/30 -i eth0 -p udp -m udp --dport 10000 -j REJECT --reject-with icmp6-adm-prohibited
+### Force MTU for bb- interfaces because some devices ignore dhcp-mtu
+iptables -t mangle -A POSTROUTING -p tcp --tcp-flags SYN,RST SYN -o bb+ -j TCPMSS --set-mss 1280
+ip6tables -t mangle -A POSTROUTING -p tcp --tcp-flags SYN,RST SYN -o bb+ -j TCPMSS --set-mss 1280
 
-# Kernel-Module
-modeprobe batman-adv
+### Kernel-Module
+modprobe batman-adv
 modprobe l2tp_core
 modprobe l2tp_eth
 modprobe l2tp_netlink
 modprobe l2tp_debugfs
 modprobe l2tp_ip
-
+modprobe nf_conntrack_netlink
+modprobe nfnetlink
+modprobe nf_conntrack
 
 #########################################################
 ### Entenhausen (ffente)                                #
@@ -75,7 +75,7 @@ start-stop-daemon -b --start -n alfred-ente --exec /usr/local/sbin/alfred -- -i 
 start-stop-daemon -b --start -n batadv-ente --exec /usr/local/sbin/batadv-vis -- -i bat-ente -s -u /tmp/alfred-ente.sock
 
 ## Fastd
-fastd -d --status-socket /tmp/fastd-ente.socket --config conf/fastd-ente.conf
+fastd -d --status-socket /tmp/fastd-ente.socket --config /home/node01/conf/fastd-ente.conf
 
 
 #########################################################
@@ -112,7 +112,7 @@ start-stop-daemon -b --start -n alfred-go --exec /usr/local/sbin/alfred -- -i al
 start-stop-daemon -b --start -n batadv-go --exec /usr/local/sbin/batadv-vis -- -i bat-go -s -u /tmp/alfred-go.sock
 
 ## Fastd
-fastd -d --status-socket /tmp/fastd-go.socket --config conf/fastd-go.conf
+fastd -d --status-socket /tmp/fastd-go.socket --config /home/node01/conf/fastd-go.conf
 
 
 #########################################################
@@ -149,8 +149,19 @@ start-stop-daemon -b --start -n alfred-pa --exec /usr/local/sbin/alfred -- -i al
 start-stop-daemon -b --start -n batadv-pa --exec /usr/local/sbin/batadv-vis -- -i bat-pa -s -u /tmp/alfred-pa.sock
 
 ## Fastd
-fastd -d --status-socket /tmp/fastd-pa.socket --config conf/fastd-pa.conf
+fastd -d --status-socket /tmp/fastd-pa.socket --config /home/node01/conf/fastd-pa.conf
 
+
+### L2TP-Tunneldigger Broker
+cd /srv/tunneldigger/
+. env_tunneldigger/bin/activate
+cd /srv/tunneldigger/tunneldigger/broker/
+python l2tp_broker.py l2tp_broker-ente.cfg &
+sleep 1
+python l2tp_broker.py l2tp_broker-go.cfg &
+sleep 1
+python l2tp_broker.py l2tp_broker-pa.cfg &
+sleep 1
 
 ##########################################################
 ## Backbone Konfiguration (L2TPv3)                      ##
