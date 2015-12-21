@@ -1,2 +1,2 @@
-# (FFRG) gateway-script
+# (FFEL) gateway-script
 Freifunk Multi-Community Gateway Script
